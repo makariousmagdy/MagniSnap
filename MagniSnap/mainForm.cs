@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Security.Cryptography;
 using System.Windows.Forms;
 using Priority_Queue;
 
@@ -14,8 +13,8 @@ namespace MagniSnap
     {
         RGBPixel[,] ImageMatrix;
         bool isLassoEnabled = false;
-//-------------------------------------------
-    //Extra Variables: 
+        //-------------------------------------------
+        //Extra Variables: 
 
         // Graph Weights
         double[,] weightRight;
@@ -39,7 +38,10 @@ namespace MagniSnap
 
         // Path that will be drawn
         List<Point> currentPath = new List<Point>();
-//-------------------------------------------
+
+        // all Path before new anchor point (MULTIPLE ANCHOR)
+        List<List<Point>> Allpath = new List<List<Point>>();
+        //-------------------------------------------
         public MainForm()
         {
             InitializeComponent();
@@ -66,7 +68,7 @@ namespace MagniSnap
         }
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
-        {         
+        {
             Application.Exit();
         }
 
@@ -76,7 +78,7 @@ namespace MagniSnap
             /// 4d17639adfad0a300acd78759e07a4f2
             #endregion
 
-//~~~~~ Exception (Parameter invalid) fix -> Can reopen large image after small image ~~~~
+            //~~~~~ Exception (Parameter invalid) fix -> Can reopen large image after small image ~~~~
             if (mainPictureBox.Image != null)
             {
                 mainPictureBox.Image.Dispose(); // manually deletes the old image from memory.
@@ -86,6 +88,7 @@ namespace MagniSnap
             // Clear previous algorithm state
             ImageMatrix = null;
             currentPath.Clear();
+            Allpath.Clear(); //MULTIPLE ANCHOR
             anchorX = -1;
             anchorY = -1;
 
@@ -115,10 +118,10 @@ namespace MagniSnap
                 string OpenedFilePath = openFileDialog1.FileName;
                 ImageMatrix = ImageToolkit.OpenImage(OpenedFilePath);
                 ImageToolkit.ViewImage(ImageMatrix, mainPictureBox);
-               
-//------------------------------------------------------------------------
+
+                //------------------------------------------------------------------------
                 BuildGraphWeights(); //call
-//------------------------------------------------------------------------
+                //------------------------------------------------------------------------
                 int width = ImageToolkit.GetWidth(ImageMatrix);
                 txtWidth.Text = width.ToString();
                 int height = ImageToolkit.GetHeight(ImageMatrix);
@@ -128,7 +131,13 @@ namespace MagniSnap
 
         private void clearToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            //Clear livewire from menu
+            currentPath.Clear();
+            Allpath.Clear(); //MULTIPLE ANCHOR
+            anchorX = -1;
+            anchorY = -1;
             mainPictureBox.Refresh();
+
         }
 
         private void btnLivewire_Click(object sender, EventArgs e)
@@ -153,7 +162,9 @@ namespace MagniSnap
             if (e.Button == MouseButtons.Left)
             {
 
-          
+                // Save previous path (MULTIPLE ANCHOR)
+                Allpath.Add(new List<Point>(currentPath));
+
                 if (ImageMatrix != null && isLassoEnabled)
                 {
                     anchorX = e.X;
@@ -176,21 +187,21 @@ namespace MagniSnap
             txtMousePosX.Text = e.X.ToString();
             txtMousePosY.Text = e.Y.ToString();
 
-        //Replacing startup code: 
+            //Replacing startup code: 
             //if (ImageMatrix != null && isLassoEnabled)
             //{
             //    // Refresh to redraw points
             //    mainPictureBox.Refresh();
             //}
-        //With: 
+            //With: 
             if (ImageMatrix != null && isLassoEnabled && anchorX != -1)
             {
                 BacktrackPath(e.X, e.Y);
             }
 
         }
-//-----------------------------------------------------------------------------
-         //T1: constructing graph 
+        //-----------------------------------------------------------------------------
+        //T1: constructing graph 
         private void BuildGraphWeights()
         {
             int h = ImageToolkit.GetHeight(ImageMatrix);
@@ -230,7 +241,7 @@ namespace MagniSnap
                     // Use REAL diagonal gradient, not (Gx+Gy)/2 -> mathematically incorrect 
                     double Gdiag = Math.Sqrt(Gx * Gx + Gy * Gy); //Calculate hypo
 
-                    
+
                     double baseRight = 1.0 / (Gx * Gx + 1e-6); //weights + epsilon (handle math error) 
                     double baseDown = 1.0 / (Gy * Gy + 1e-6);
 
@@ -256,15 +267,15 @@ namespace MagniSnap
 
 
 
- //-------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         // T2: Calculating shortest path:
         private void InitializeDijkstra(int anchorX, int anchorY)
         {
             int h = ImageToolkit.GetHeight(ImageMatrix);
             int w = ImageToolkit.GetWidth(ImageMatrix);
 
-          //these four lines allocate huge arrays every click
-          //This is what causes OutOfMemoryException
+            //these four lines allocate huge arrays every click
+            //This is what causes OutOfMemoryException
             //dist = new double[h, w];
             //visited = new bool[h, w];
             //prevX = new int[h, w];
@@ -291,15 +302,15 @@ namespace MagniSnap
             int w = ImageToolkit.GetWidth(ImageMatrix);
 
             //  FastPriorityQueue pq = new FastPriorityQueue();
-            
-            SimplePriorityQueue<Point, double> pq = new SimplePriorityQueue<Point,double>();
+
+            SimplePriorityQueue<Point, double> pq = new SimplePriorityQueue<Point, double>();
             Point point = new Point(startX, startY);
 
             pq.Enqueue(point, 0);
 
             int counter = 0;
 
-            while (pq.Count!=0)
+            while (pq.Count != 0)
             {
                 // Avoid UI freezing
                 counter++;
@@ -329,9 +340,9 @@ namespace MagniSnap
                         prevX[y, x + 1] = x;
                         prevY[y, x + 1] = y;
 
-                        Point pointR = new Point(x+1, y);
-                       
-                        pq.Enqueue(pointR,newDist);
+                        Point pointR = new Point(x + 1, y);
+
+                        pq.Enqueue(pointR, newDist);
                     }
                 }
 
@@ -363,7 +374,7 @@ namespace MagniSnap
                         dist[y + 1, x] = newDist;
                         prevX[y + 1, x] = x;
                         prevY[y + 1, x] = y;
-                        Point pointD = new Point(x, y+1);
+                        Point pointD = new Point(x, y + 1);
                         pq.Enqueue(pointD, newDist);
                     }
                 }
@@ -379,11 +390,11 @@ namespace MagniSnap
                         dist[y - 1, x] = newDist;
                         prevX[y - 1, x] = x;
                         prevY[y - 1, x] = y;
-                        Point pointU = new Point(x, y-1);
+                        Point pointU = new Point(x, y - 1);
                         pq.Enqueue(pointU, newDist);
                     }
                 }
-            //*********** 8 CONNECTIVITY ******************************
+                //*********** 8 CONNECTIVITY ******************************
                 // DOWN-RIGHT (x+1, y+1)
                 if (x + 1 < w && y + 1 < h && !visited[y + 1, x + 1])
                 {
@@ -393,7 +404,7 @@ namespace MagniSnap
                         dist[y + 1, x + 1] = newDist;
                         prevX[y + 1, x + 1] = x;
                         prevY[y + 1, x + 1] = y;
-                        Point pointDR = new Point(x + 1, y+1);
+                        Point pointDR = new Point(x + 1, y + 1);
                         pq.Enqueue(pointDR, newDist);
                     }
                 }
@@ -408,7 +419,7 @@ namespace MagniSnap
                         prevX[y + 1, x - 1] = x;
                         prevY[y + 1, x - 1] = y;
 
-                        Point pointDL = new Point(x - 1, y+1);
+                        Point pointDL = new Point(x - 1, y + 1);
                         pq.Enqueue(pointDL, newDist);
                     }
                 }
@@ -422,7 +433,7 @@ namespace MagniSnap
                         dist[y - 1, x + 1] = newDist;
                         prevX[y - 1, x + 1] = x;
                         prevY[y - 1, x + 1] = y;
-                        Point pointUR = new Point(x + 1, y-1);
+                        Point pointUR = new Point(x + 1, y - 1);
                         pq.Enqueue(pointUR, newDist);
                     }
                 }
@@ -436,7 +447,7 @@ namespace MagniSnap
                         dist[y - 1, x - 1] = newDist;
                         prevX[y - 1, x - 1] = x;
                         prevY[y - 1, x - 1] = y;
-                        Point pointUL = new Point(x - 1, y-1);
+                        Point pointUL = new Point(x - 1, y - 1);
                         pq.Enqueue(pointUL, newDist);
                     }
                 }
@@ -445,7 +456,7 @@ namespace MagniSnap
             }
         }
 
-//---------------------------------------------------------------------------------
+        //---------------------------------------------------------------------------------
         //T3: Back track shortest path: 
 
         private void BacktrackPath(int mouseX, int mouseY)
@@ -473,17 +484,26 @@ namespace MagniSnap
                 x = px;
                 y = py;
             }
-            
+
             // After storing the path → refresh to draw it
             mainPictureBox.Refresh();
         }
-//----------------------------------------------------------------------------------
+        //----------------------------------------------------------------------------------
         // T4: Draw Path
+
         private void mainPictureBox_Paint(object sender, PaintEventArgs e)
         {
-            if (currentPath.Count > 1)
+            using (Pen pen = new Pen(Color.Yellow, 2))
             {
-                using (Pen pen = new Pen(Color.Yellow, 2))
+                // Draw all stored Path when using Multi Anchor 
+                foreach (var segment in Allpath)
+                {
+                    for (int i = 1; i < segment.Count; i++)
+                    {
+                        e.Graphics.DrawLine(pen, segment[i - 1], segment[i]);
+                    }
+                }
+                if (currentPath.Count > 1)
                 {
                     for (int i = 1; i < currentPath.Count; i++)
                     {
@@ -495,79 +515,7 @@ namespace MagniSnap
                 }
             }
         }
-
-
     }
-
-//------------------------------------------------------------------------
-    //// Minimal priority queue for (distance, x, y)
-    //class PixelNode : IComparable<PixelNode>
-    //{
-    //    public double dist;
-    //    public int x, y;
-
-    //    public int CompareTo(PixelNode other)
-    //    {
-    //        return dist.CompareTo(other.dist);
-    //    }
-    //}
-
-    //class FastPriorityQueue
-    //{
-    //    private List<PixelNode> heap = new List<PixelNode>();
-
-    //    public void Enqueue(double d, int x, int y)
-    //    {
-    //        heap.Add(new PixelNode { dist = d, x = x, y = y });
-    //        HeapifyUp(heap.Count - 1);
-    //    }
-
-    //    public PixelNode Dequeue()
-    //    {
-    //        PixelNode root = heap[0];
-    //        heap[0] = heap[heap.Count - 1];
-    //        heap.RemoveAt(heap.Count - 1);
-    //        HeapifyDown(0);
-    //        return root;
-    //    }
-
-    //    public bool IsEmpty() => heap.Count == 0;
-
-    //    private void HeapifyUp(int i)
-    //    {
-    //        while (i > 0)
-    //        {
-    //            int parent = (i - 1) / 2;
-    //            if (heap[i].dist >= heap[parent].dist) break;
-
-    //            (heap[i], heap[parent]) = (heap[parent], heap[i]);
-    //            i = parent;
-    //        }
-    //    }
-
-    //    private void HeapifyDown(int i)
-    //    {
-    //        int left, right, smallest;
-
-    //        while (true)
-    //        {
-    //            left = 2 * i + 1;
-    //            right = 2 * i + 2;
-    //            smallest = i;
-
-    //            if (left < heap.Count && heap[left].dist < heap[smallest].dist)
-    //                smallest = left;
-
-    //            if (right < heap.Count && heap[right].dist < heap[smallest].dist)
-    //                smallest = right;
-
-    //            if (smallest == i) break;
-
-    //            (heap[i], heap[smallest]) = (heap[smallest], heap[i]);
-    //            i = smallest;
-    //        }
-    //    }
-    //}
-//----------------------------------------------------------------------------------
-// HEHE <3 :)
 }
+// HEHE <3 :)
+
