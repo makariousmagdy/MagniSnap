@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Security.Cryptography;
 using System.Windows.Forms;
+using Priority_Queue;
 
 namespace MagniSnap
 {
@@ -77,15 +79,15 @@ namespace MagniSnap
 //~~~~~ Exception (Parameter invalid) fix -> Can reopen large image after small image ~~~~
             if (mainPictureBox.Image != null)
             {
-                mainPictureBox.Image.Dispose();
+                mainPictureBox.Image.Dispose(); // manually deletes the old image from memory.
                 mainPictureBox.Image = null;
             }
 
             // Clear previous algorithm state
             ImageMatrix = null;
+            currentPath.Clear();
             anchorX = -1;
             anchorY = -1;
-            currentPath.Clear();
 
             dist = null;
             visited = null;
@@ -99,7 +101,12 @@ namespace MagniSnap
             weightDiagUpRight = null;
             weightDiagUpLeft = null;
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            //// Optional but safe for large images
+            //GC.Collect();
+            //GC.WaitForPendingFinalizers();
+            //GC.Collect();
+
+            //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             OpenFileDialog openFileDialog1 = new OpenFileDialog();
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
             {
@@ -189,6 +196,16 @@ namespace MagniSnap
             int h = ImageToolkit.GetHeight(ImageMatrix);
             int w = ImageToolkit.GetWidth(ImageMatrix);
 
+            // Allocate Dijkstra arrays ONCE per image
+            if (dist == null || dist.GetLength(0) != h || dist.GetLength(1) != w)
+            {
+                dist = new double[h, w];
+                visited = new bool[h, w];
+                prevX = new int[h, w];
+                prevY = new int[h, w];
+            }
+
+
             weightRight = new double[h, w];
             weightDown = new double[h, w];
 
@@ -205,19 +222,20 @@ namespace MagniSnap
                 {
                     Vector2D energy = ImageToolkit.CalculatePixelEnergies(x, y, ImageMatrix);
 
-                    // Scale gradients (your choice to keep)
+                    // Scale gradients (your choice to keep) -> remove direction (so it doesnt affect) ; Strong edges → very low cost 
                     double Gx = Math.Abs(energy.X) * 25.0;
                     double Gy = Math.Abs(energy.Y) * 25.0;
 
                     //********* FIXED DIAGONAL LOGIC (8 CONNECTIVITY) ************
-                    // Use REAL diagonal gradient, not (Gx+Gy)/2
-                    double Gdiag = Math.Sqrt(Gx * Gx + Gy * Gy);
+                    // Use REAL diagonal gradient, not (Gx+Gy)/2 -> mathematically incorrect 
+                    double Gdiag = Math.Sqrt(Gx * Gx + Gy * Gy); //Calculate hypo
 
-                    double baseRight = 1.0 / (Gx * Gx + 1e-6);
+                    
+                    double baseRight = 1.0 / (Gx * Gx + 1e-6); //weights + epsilon (handle math error) 
                     double baseDown = 1.0 / (Gy * Gy + 1e-6);
 
                     // Apply diagonal distance penalty (critical fix)
-                    double diagPenalty = 1.41421356; // sqrt(2)
+                    double diagPenalty = 1.41421356; // sqrt(2) -> diagonal penality 
 
                     double baseDiag = diagPenalty * (1.0 / (Gdiag * Gdiag + 1e-6));
 
@@ -228,7 +246,7 @@ namespace MagniSnap
                     weightDiagUpLeft[y, x] = baseDiag;
                     //*************************************************************
 
-                    // Horizontal + vertical weights (your version)
+                    // store Horizontal + vertical weights 
                     weightRight[y, x] = baseRight;
                     weightDown[y, x] = baseDown;
                 }
@@ -245,16 +263,19 @@ namespace MagniSnap
             int h = ImageToolkit.GetHeight(ImageMatrix);
             int w = ImageToolkit.GetWidth(ImageMatrix);
 
-            dist = new double[h, w];
-            visited = new bool[h, w];
-            prevX = new int[h, w];
-            prevY = new int[h, w];
+          //these four lines allocate huge arrays every click
+          //This is what causes OutOfMemoryException
+            //dist = new double[h, w];
+            //visited = new bool[h, w];
+            //prevX = new int[h, w];
+            //prevY = new int[h, w];
 
             // Initialize all distances to infinity
             for (int y = 0; y < h; y++)
                 for (int x = 0; x < w; x++)
                 {
                     dist[y, x] = double.MaxValue;
+                    visited[y, x] = false;
                     prevX[y, x] = -1;
                     prevY[y, x] = -1;
                 }
@@ -269,21 +290,26 @@ namespace MagniSnap
             int h = ImageToolkit.GetHeight(ImageMatrix);
             int w = ImageToolkit.GetWidth(ImageMatrix);
 
-            FastPriorityQueue pq = new FastPriorityQueue();
-            pq.Enqueue(0, startX, startY);
+            //  FastPriorityQueue pq = new FastPriorityQueue();
+            
+            SimplePriorityQueue<Point, double> pq = new SimplePriorityQueue<Point,double>();
+            Point point = new Point(startX, startY);
+
+            pq.Enqueue(point, 0);
 
             int counter = 0;
 
-            while (!pq.IsEmpty())
+            while (pq.Count!=0)
             {
                 // Avoid UI freezing
                 counter++;
                 if (counter % 50000 == 0)
-                    Application.DoEvents();
+                    Application.DoEvents();  //Without this, the window would appear “Not Responding” 
 
-                PixelNode node = pq.Dequeue();
-                int x = node.x;
-                int y = node.y;
+                Point node = pq.Dequeue();
+
+                int x = node.X;
+                int y = node.Y;
 
                 // If already finalized → skip
                 if (visited[y, x]) continue;
@@ -295,14 +321,17 @@ namespace MagniSnap
                 if (x + 1 < w && !visited[y, x + 1])
                 {
                     double wght = weightRight[y, x];
-                    double nd = baseDist + wght;
+                    double newDist = baseDist + wght;
 
-                    if (nd < dist[y, x + 1])
+                    if (newDist < dist[y, x + 1])
                     {
-                        dist[y, x + 1] = nd;
+                        dist[y, x + 1] = newDist;
                         prevX[y, x + 1] = x;
                         prevY[y, x + 1] = y;
-                        pq.Enqueue(nd, x + 1, y);
+
+                        Point pointR = new Point(x+1, y);
+                       
+                        pq.Enqueue(pointR,newDist);
                     }
                 }
 
@@ -310,14 +339,16 @@ namespace MagniSnap
                 if (x - 1 >= 0 && !visited[y, x - 1])
                 {
                     double wght = weightRight[y, x - 1];
-                    double nd = baseDist + wght;
+                    double newDist = baseDist + wght;
 
-                    if (nd < dist[y, x - 1])
+                    if (newDist < dist[y, x - 1])
                     {
-                        dist[y, x - 1] = nd;
+                        dist[y, x - 1] = newDist;
                         prevX[y, x - 1] = x;
                         prevY[y, x - 1] = y;
-                        pq.Enqueue(nd, x - 1, y);
+
+                        Point pointL = new Point(x - 1, y);
+                        pq.Enqueue(pointL, newDist);
                     }
                 }
 
@@ -325,14 +356,15 @@ namespace MagniSnap
                 if (y + 1 < h && !visited[y + 1, x])
                 {
                     double wght = weightDown[y, x];
-                    double nd = baseDist + wght;
+                    double newDist = baseDist + wght;
 
-                    if (nd < dist[y + 1, x])
+                    if (newDist < dist[y + 1, x])
                     {
-                        dist[y + 1, x] = nd;
+                        dist[y + 1, x] = newDist;
                         prevX[y + 1, x] = x;
                         prevY[y + 1, x] = y;
-                        pq.Enqueue(nd, x, y + 1);
+                        Point pointD = new Point(x, y+1);
+                        pq.Enqueue(pointD, newDist);
                     }
                 }
 
@@ -340,66 +372,72 @@ namespace MagniSnap
                 if (y - 1 >= 0 && !visited[y - 1, x])
                 {
                     double wght = weightDown[y - 1, x];
-                    double nd = baseDist + wght;
+                    double newDist = baseDist + wght;
 
-                    if (nd < dist[y - 1, x])
+                    if (newDist < dist[y - 1, x])
                     {
-                        dist[y - 1, x] = nd;
+                        dist[y - 1, x] = newDist;
                         prevX[y - 1, x] = x;
                         prevY[y - 1, x] = y;
-                        pq.Enqueue(nd, x, y - 1);
+                        Point pointU = new Point(x, y-1);
+                        pq.Enqueue(pointU, newDist);
                     }
                 }
             //*********** 8 CONNECTIVITY ******************************
                 // DOWN-RIGHT (x+1, y+1)
                 if (x + 1 < w && y + 1 < h && !visited[y + 1, x + 1])
                 {
-                    double nd = baseDist + weightDiagDownRight[y, x];
-                    if (nd < dist[y + 1, x + 1])
+                    double newDist = baseDist + weightDiagDownRight[y, x];
+                    if (newDist < dist[y + 1, x + 1])
                     {
-                        dist[y + 1, x + 1] = nd;
+                        dist[y + 1, x + 1] = newDist;
                         prevX[y + 1, x + 1] = x;
                         prevY[y + 1, x + 1] = y;
-                        pq.Enqueue(nd, x + 1, y + 1);
+                        Point pointDR = new Point(x + 1, y+1);
+                        pq.Enqueue(pointDR, newDist);
                     }
                 }
 
                 // DOWN-LEFT (x-1, y+1)
                 if (x - 1 >= 0 && y + 1 < h && !visited[y + 1, x - 1])
                 {
-                    double nd = baseDist + weightDiagDownLeft[y, x];
-                    if (nd < dist[y + 1, x - 1])
+                    double newDist = baseDist + weightDiagDownLeft[y, x];
+                    if (newDist < dist[y + 1, x - 1])
                     {
-                        dist[y + 1, x - 1] = nd;
+                        dist[y + 1, x - 1] = newDist;
                         prevX[y + 1, x - 1] = x;
                         prevY[y + 1, x - 1] = y;
-                        pq.Enqueue(nd, x - 1, y + 1);
+
+                        Point pointDL = new Point(x - 1, y+1);
+                        pq.Enqueue(pointDL, newDist);
                     }
                 }
 
                 // UP-RIGHT (x+1, y-1)
                 if (x + 1 < w && y - 1 >= 0 && !visited[y - 1, x + 1])
                 {
-                    double nd = baseDist + weightDiagUpRight[y, x];
-                    if (nd < dist[y - 1, x + 1])
+                    double newDist = baseDist + weightDiagUpRight[y, x];
+                    if (newDist < dist[y - 1, x + 1])
                     {
-                        dist[y - 1, x + 1] = nd;
+                        dist[y - 1, x + 1] = newDist;
                         prevX[y - 1, x + 1] = x;
                         prevY[y - 1, x + 1] = y;
-                        pq.Enqueue(nd, x + 1, y - 1);
+                        Point pointUR = new Point(x + 1, y-1);
+                        pq.Enqueue(pointUR, newDist);
                     }
                 }
 
                 // UP-LEFT (x-1, y-1)
                 if (x - 1 >= 0 && y - 1 >= 0 && !visited[y - 1, x - 1])
                 {
-                    double nd = baseDist + weightDiagUpLeft[y, x];
-                    if (nd < dist[y - 1, x - 1])
+                    double newDist = baseDist + weightDiagUpLeft[y, x];
+                    if (newDist < dist[y - 1, x - 1])
                     {
-                        dist[y - 1, x - 1] = nd;
+                        dist[y - 1, x - 1] = newDist;
                         prevX[y - 1, x - 1] = x;
                         prevY[y - 1, x - 1] = y;
-                        pq.Enqueue(nd, x - 1, y - 1);
+                        Point pointUL = new Point(x - 1, y-1);
+                        pq.Enqueue(pointUL, newDist);
                     }
                 }
 
@@ -462,74 +500,74 @@ namespace MagniSnap
     }
 
 //------------------------------------------------------------------------
-    // Minimal priority queue for (distance, x, y)
-    class PixelNode : IComparable<PixelNode>
-    {
-        public double dist;
-        public int x, y;
+    //// Minimal priority queue for (distance, x, y)
+    //class PixelNode : IComparable<PixelNode>
+    //{
+    //    public double dist;
+    //    public int x, y;
 
-        public int CompareTo(PixelNode other)
-        {
-            return dist.CompareTo(other.dist);
-        }
-    }
+    //    public int CompareTo(PixelNode other)
+    //    {
+    //        return dist.CompareTo(other.dist);
+    //    }
+    //}
 
-    class FastPriorityQueue
-    {
-        private List<PixelNode> heap = new List<PixelNode>();
+    //class FastPriorityQueue
+    //{
+    //    private List<PixelNode> heap = new List<PixelNode>();
 
-        public void Enqueue(double d, int x, int y)
-        {
-            heap.Add(new PixelNode { dist = d, x = x, y = y });
-            HeapifyUp(heap.Count - 1);
-        }
+    //    public void Enqueue(double d, int x, int y)
+    //    {
+    //        heap.Add(new PixelNode { dist = d, x = x, y = y });
+    //        HeapifyUp(heap.Count - 1);
+    //    }
 
-        public PixelNode Dequeue()
-        {
-            PixelNode root = heap[0];
-            heap[0] = heap[heap.Count - 1];
-            heap.RemoveAt(heap.Count - 1);
-            HeapifyDown(0);
-            return root;
-        }
+    //    public PixelNode Dequeue()
+    //    {
+    //        PixelNode root = heap[0];
+    //        heap[0] = heap[heap.Count - 1];
+    //        heap.RemoveAt(heap.Count - 1);
+    //        HeapifyDown(0);
+    //        return root;
+    //    }
 
-        public bool IsEmpty() => heap.Count == 0;
+    //    public bool IsEmpty() => heap.Count == 0;
 
-        private void HeapifyUp(int i)
-        {
-            while (i > 0)
-            {
-                int parent = (i - 1) / 2;
-                if (heap[i].dist >= heap[parent].dist) break;
+    //    private void HeapifyUp(int i)
+    //    {
+    //        while (i > 0)
+    //        {
+    //            int parent = (i - 1) / 2;
+    //            if (heap[i].dist >= heap[parent].dist) break;
 
-                (heap[i], heap[parent]) = (heap[parent], heap[i]);
-                i = parent;
-            }
-        }
+    //            (heap[i], heap[parent]) = (heap[parent], heap[i]);
+    //            i = parent;
+    //        }
+    //    }
 
-        private void HeapifyDown(int i)
-        {
-            int left, right, smallest;
+    //    private void HeapifyDown(int i)
+    //    {
+    //        int left, right, smallest;
 
-            while (true)
-            {
-                left = 2 * i + 1;
-                right = 2 * i + 2;
-                smallest = i;
+    //        while (true)
+    //        {
+    //            left = 2 * i + 1;
+    //            right = 2 * i + 2;
+    //            smallest = i;
 
-                if (left < heap.Count && heap[left].dist < heap[smallest].dist)
-                    smallest = left;
+    //            if (left < heap.Count && heap[left].dist < heap[smallest].dist)
+    //                smallest = left;
 
-                if (right < heap.Count && heap[right].dist < heap[smallest].dist)
-                    smallest = right;
+    //            if (right < heap.Count && heap[right].dist < heap[smallest].dist)
+    //                smallest = right;
 
-                if (smallest == i) break;
+    //            if (smallest == i) break;
 
-                (heap[i], heap[smallest]) = (heap[smallest], heap[i]);
-                i = smallest;
-            }
-        }
-    }
+    //            (heap[i], heap[smallest]) = (heap[smallest], heap[i]);
+    //            i = smallest;
+    //        }
+    //    }
+    //}
 //----------------------------------------------------------------------------------
 // HEHE <3 :)
 }
