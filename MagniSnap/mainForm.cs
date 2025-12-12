@@ -143,7 +143,7 @@ namespace MagniSnap
 
         }
 
-        //NEW FUNCTION TO CLEAN WHOLE 
+        //NEW FUNCTION 
         private void cleanToolStripMenuItemClickToolStripMenuItem_Click(object sender, EventArgs e)
         {
             //Clean extra livewire drawing ->   menu option

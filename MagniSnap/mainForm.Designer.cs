@@ -41,6 +41,7 @@
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.cleanToolStripMenuItem_Click = new System.Windows.Forms.ToolStripMenuItem();
             this.clearToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.saveToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
@@ -60,7 +61,6 @@
             this.txtWidth = new System.Windows.Forms.TextBox();
             this.txtMousePosY = new System.Windows.Forms.TextBox();
             this.txtHeight = new System.Windows.Forms.TextBox();
-            this.cleanToolStripMenuItem_Click = new System.Windows.Forms.ToolStripMenuItem();
             this.panel1.SuspendLayout();
             this.panel3.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.appLogo)).BeginInit();
@@ -230,9 +230,19 @@
             this.openToolStripMenuItem.ImageScaling = System.Windows.Forms.ToolStripItemImageScaling.None;
             this.openToolStripMenuItem.Name = "openToolStripMenuItem";
             this.openToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.O)));
-            this.openToolStripMenuItem.Size = new System.Drawing.Size(371, 32);
+            this.openToolStripMenuItem.Size = new System.Drawing.Size(229, 32);
             this.openToolStripMenuItem.Text = "Open";
             this.openToolStripMenuItem.Click += new System.EventHandler(this.openToolStripMenuItem_Click);
+            // 
+            // cleanToolStripMenuItem_Click
+            // 
+            this.cleanToolStripMenuItem_Click.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(26)))), ((int)(((byte)(32)))), ((int)(((byte)(40)))));
+            this.cleanToolStripMenuItem_Click.ForeColor = System.Drawing.Color.Snow;
+            this.cleanToolStripMenuItem_Click.Name = "cleanToolStripMenuItem_Click";
+            this.cleanToolStripMenuItem_Click.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.L)));
+            this.cleanToolStripMenuItem_Click.Size = new System.Drawing.Size(229, 32);
+            this.cleanToolStripMenuItem_Click.Text = "Clean";
+            this.cleanToolStripMenuItem_Click.Click += new System.EventHandler(this.cleanToolStripMenuItemClickToolStripMenuItem_Click);
             // 
             // clearToolStripMenuItem
             // 
@@ -240,7 +250,7 @@
             this.clearToolStripMenuItem.ForeColor = System.Drawing.Color.White;
             this.clearToolStripMenuItem.Name = "clearToolStripMenuItem";
             this.clearToolStripMenuItem.ShortcutKeys = System.Windows.Forms.Keys.Delete;
-            this.clearToolStripMenuItem.Size = new System.Drawing.Size(371, 32);
+            this.clearToolStripMenuItem.Size = new System.Drawing.Size(229, 32);
             this.clearToolStripMenuItem.Text = "Clear";
             this.clearToolStripMenuItem.Click += new System.EventHandler(this.clearToolStripMenuItem_Click);
             // 
@@ -250,7 +260,7 @@
             this.saveToolStripMenuItem.ForeColor = System.Drawing.Color.White;
             this.saveToolStripMenuItem.Name = "saveToolStripMenuItem";
             this.saveToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.S)));
-            this.saveToolStripMenuItem.Size = new System.Drawing.Size(371, 32);
+            this.saveToolStripMenuItem.Size = new System.Drawing.Size(229, 32);
             this.saveToolStripMenuItem.Text = "Save";
             // 
             // toolStripSeparator1
@@ -259,7 +269,7 @@
             this.toolStripSeparator1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(26)))), ((int)(((byte)(32)))), ((int)(((byte)(40)))));
             this.toolStripSeparator1.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(102)))), ((int)(((byte)(204)))));
             this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(368, 3);
+            this.toolStripSeparator1.Size = new System.Drawing.Size(226, 3);
             // 
             // exitToolStripMenuItem
             // 
@@ -267,7 +277,7 @@
             this.exitToolStripMenuItem.ForeColor = System.Drawing.Color.White;
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
             this.exitToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Alt | System.Windows.Forms.Keys.F4)));
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(371, 32);
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(229, 32);
             this.exitToolStripMenuItem.Text = "Exit";
             this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
             // 
@@ -455,15 +465,6 @@
             this.txtHeight.ReadOnly = true;
             this.txtHeight.Size = new System.Drawing.Size(74, 27);
             this.txtHeight.TabIndex = 19;
-            // 
-            // cleanToolStripMenuItem_Click
-            // 
-            this.cleanToolStripMenuItem_Click.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(26)))), ((int)(((byte)(32)))), ((int)(((byte)(40)))));
-            this.cleanToolStripMenuItem_Click.ForeColor = System.Drawing.Color.Snow;
-            this.cleanToolStripMenuItem_Click.Name = "cleanToolStripMenuItem_Click";
-            this.cleanToolStripMenuItem_Click.Size = new System.Drawing.Size(229, 32);
-            this.cleanToolStripMenuItem_Click.Text = "Clean";
-            this.cleanToolStripMenuItem_Click.Click += new System.EventHandler(this.cleanToolStripMenuItemClickToolStripMenuItem_Click);
             // 
             // MainForm
             // 
