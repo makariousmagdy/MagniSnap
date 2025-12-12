@@ -36,6 +36,8 @@ namespace MagniSnap
         int anchorX = -1;
         int anchorY = -1;
 
+        
+
         // Path that will be drawn
         List<Point> currentPath = new List<Point>();
 
@@ -129,16 +131,28 @@ namespace MagniSnap
             }
         }
 
+ //############################################################
         private void clearToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            //Clear livewire from menu
+            //Clear whole livewire drawings ->   menu option
             currentPath.Clear();
-            Allpath.Clear(); //MULTIPLE ANCHOR
+            Allpath.Clear(); //Clear Multiple Anchors
             anchorX = -1;
             anchorY = -1;
             mainPictureBox.Refresh();
 
         }
+
+        //NEW FUNCTION TO CLEAN WHOLE 
+        private void cleanToolStripMenuItemClickToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //Clean extra livewire drawing ->   menu option
+            currentPath.Clear();
+            anchorX = -1;
+            anchorY = -1;
+            mainPictureBox.Refresh();
+        }
+//############################################################
 
         private void btnLivewire_Click(object sender, EventArgs e)
         {
