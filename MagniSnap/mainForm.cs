@@ -37,7 +37,6 @@ namespace MagniSnap
         int anchorX = -1;
         int anchorY = -1;
 
-        
 
         // Path that will be drawn
         List<Point> currentPath = new List<Point>();
@@ -173,7 +172,7 @@ namespace MagniSnap
             {
 
                 // Save previous path (MULTIPLE ANCHOR)
-                wholePath.Add(new List<Point>(currentPath));
+                wholePath.Add(new List<Point>(currentPath)); 
 
                 if (ImageMatrix != null && isLassoEnabled)
                 {
@@ -186,7 +185,7 @@ namespace MagniSnap
                     // To force a first path draw (small dot)
                     BacktrackPath(anchorX, anchorY);
 
-                    mainPictureBox.Refresh();
+                    mainPictureBox.Refresh(); //Doesn't affect complexity. 
                 }
 
             }
@@ -277,8 +276,6 @@ namespace MagniSnap
         }
 
 
-
-
         //-------------------------------------------------------------------------
         // T2: Calculating shortest path:
         private void InitializeDijkstra(int anchorX, int anchorY)
@@ -300,109 +297,144 @@ namespace MagniSnap
             shortestPath[anchorY, anchorX] = 0; // start point
         }
 
-        private void RunDijkstra(int firstX, int firstY)   //DIJSKTRA WORKS DP (Horrayyyy!!!)
+        private void RunDijkstra(int firstX, int firstY)   
+                           
+                                                           
         {
             InitializeDijkstra(firstX, firstY);
+           
 
             int height = ImageToolkit.GetHeight(ImageMatrix);
             int width = ImageToolkit.GetWidth(ImageMatrix);
-
-            //  FastPriorityQueue priorityQ = new FastPriorityQueue();
-
+        
             SimplePriorityQueue<Point, double> priorityQ = new SimplePriorityQueue<Point, double>();
+
             Point point = new Point(firstX, firstY);
 
             priorityQ.Enqueue(point, 0);
 
             int counter = 0;
 
-            while (priorityQ.Count != 0)
+            while (priorityQ.Count != 0)  // iterates E times. 
+
             {
-                // Avoid UI freezing
                 counter++;
                 if (counter % 50000 == 0)
-                    Application.DoEvents();  //Without this, the window would appear “Not Responding” 
+                    Application.DoEvents(); // fixed "Not Responding" UI problem by handling pending events. 
+                                  //Doesn't affect complexity.
+
 
                 Point currentPixel = priorityQ.Dequeue();
+       
 
                 int x = currentPixel.X;
                 int y = currentPixel.Y;
-
-                // If already finalized → skip
-                if (visitedPixel[y, x]) 
+     
+                if (visitedPixel[y, x])
                     continue;
-                visitedPixel[y, x] = true;
 
+
+                visitedPixel[y, x] = true;
+    
+ 
                 double costDist = shortestPath[y, x];
 
-                // RIGHT (R)
+
+                // ---------- RIGHT ----------
                 if (x + 1 < width && !visitedPixel[y, x + 1])
+     
                 {
                     double weight = weightRight[y, x];
                     double newDist = costDist + weight;
-
+      
                     if (newDist < shortestPath[y, x + 1])
+               
                     {
                         shortestPath[y, x + 1] = newDist;
                         parentX[y, x + 1] = x;
                         parentY[y, x + 1] = y;
+                   
 
                         Point pointR = new Point(x + 1, y);
 
                         priorityQ.Enqueue(pointR, newDist);
+                        
                     }
                 }
 
-                // LEFT (L)
+                // ---------- LEFT ----------
                 if (x - 1 >= 0 && !visitedPixel[y, x - 1])
+              
                 {
                     double weight = weightRight[y, x - 1];
                     double newDist = costDist + weight;
-
+                  
                     if (newDist < shortestPath[y, x - 1])
+              
                     {
                         shortestPath[y, x - 1] = newDist;
                         parentX[y, x - 1] = x;
                         parentY[y, x - 1] = y;
+                      
 
                         Point pointL = new Point(x - 1, y);
+                   
+
                         priorityQ.Enqueue(pointL, newDist);
+                     
                     }
                 }
 
-                // DOWN (D)
+                // ---------- DOWN ----------
                 if (y + 1 < height && !visitedPixel[y + 1, x])
+             
                 {
                     double weight = weightDown[y, x];
                     double newDist = costDist + weight;
+                  
 
                     if (newDist < shortestPath[y + 1, x])
+                   
                     {
                         shortestPath[y + 1, x] = newDist;
                         parentX[y + 1, x] = x;
                         parentY[y + 1, x] = y;
+                     
+
                         Point pointD = new Point(x, y + 1);
+                    
+
                         priorityQ.Enqueue(pointD, newDist);
+                      
                     }
                 }
 
-                // UP (U)
+                // ---------- UP ----------
                 if (y - 1 >= 0 && !visitedPixel[y - 1, x])
+               
                 {
                     double weight = weightDown[y - 1, x];
                     double newDist = costDist + weight;
+                   
 
                     if (newDist < shortestPath[y - 1, x])
+                  
                     {
                         shortestPath[y - 1, x] = newDist;
                         parentX[y - 1, x] = x;
                         parentY[y - 1, x] = y;
+                     
+
                         Point pointU = new Point(x, y - 1);
+                    
+
                         priorityQ.Enqueue(pointU, newDist);
+                      
                     }
                 }
-                //*********** 8 CONNECTIVITY ******************************
-                // DOWN-RIGHT DR (x+1, y+1)
+
+                // *********** 8 CONNECTIVITY ***********
+  
                 if (x + 1 < width && y + 1 < height && !visitedPixel[y + 1, x + 1])
                 {
                     double newDist = costDist + weightDiagDR[y, x];
@@ -411,12 +443,11 @@ namespace MagniSnap
                         shortestPath[y + 1, x + 1] = newDist;
                         parentX[y + 1, x + 1] = x;
                         parentY[y + 1, x + 1] = y;
-                        Point pointDR = new Point(x + 1, y + 1);
-                        priorityQ.Enqueue(pointDR, newDist);
+                        priorityQ.Enqueue(new Point(x + 1, y + 1), newDist);
+                       
                     }
                 }
 
-                // DOWN-LEFT DL (x-1, y+1)
                 if (x - 1 >= 0 && y + 1 < height && !visitedPixel[y + 1, x - 1])
                 {
                     double newDist = costDist + weightDiagDL[y, x];
@@ -425,13 +456,11 @@ namespace MagniSnap
                         shortestPath[y + 1, x - 1] = newDist;
                         parentX[y + 1, x - 1] = x;
                         parentY[y + 1, x - 1] = y;
-
-                        Point pointDL = new Point(x - 1, y + 1);
-                        priorityQ.Enqueue(pointDL, newDist);
+                        priorityQ.Enqueue(new Point(x - 1, y + 1), newDist);
+                       
                     }
                 }
 
-                // UP-RIGHT (x+1, y-1)
                 if (x + 1 < width && y - 1 >= 0 && !visitedPixel[y - 1, x + 1])
                 {
                     double newDist = costDist + weightDiagUR[y, x];
@@ -440,12 +469,11 @@ namespace MagniSnap
                         shortestPath[y - 1, x + 1] = newDist;
                         parentX[y - 1, x + 1] = x;
                         parentY[y - 1, x + 1] = y;
-                        Point pointUR = new Point(x + 1, y - 1);
-                        priorityQ.Enqueue(pointUR, newDist);
+                        priorityQ.Enqueue(new Point(x + 1, y - 1), newDist);
+                       
                     }
                 }
 
-                // UP-LEFT (x-1, y-1)
                 if (x - 1 >= 0 && y - 1 >= 0 && !visitedPixel[y - 1, x - 1])
                 {
                     double newDist = costDist + weightDiagUL[y, x];
@@ -454,14 +482,13 @@ namespace MagniSnap
                         shortestPath[y - 1, x - 1] = newDist;
                         parentX[y - 1, x - 1] = x;
                         parentY[y - 1, x - 1] = y;
-                        Point pointUL = new Point(x - 1, y - 1);
-                        priorityQ.Enqueue(pointUL, newDist);
+                        priorityQ.Enqueue(new Point(x - 1, y - 1), newDist);
+                    
                     }
                 }
-
-
             }
         }
+
 
         //---------------------------------------------------------------------------------
         //T3: Back track shortest path: 
@@ -500,7 +527,7 @@ namespace MagniSnap
 
         private void DrawPath(object sender, PaintEventArgs e)
         {
-            using (Pen pen = new Pen(Color.Yellow, 2))
+            using (Pen pen = new Pen(Color.Cyan, 2))
             {
                 // Draw all stored Path when using Multi Anchor 
                 foreach (var line in wholePath)
